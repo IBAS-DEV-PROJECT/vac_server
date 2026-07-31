@@ -1,0 +1,38 @@
+# ---- Virtual environment ----
+.venv/
+venv/
+
+# ---- Python 캐시/컴파일 결과 ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ---- 패키징/빌드 ----
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ---- 테스트/커버리지 ----
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 환경변수/시크릿 ----
+.env
+.env.*
+!.env.example
+
+# ---- IDE / 에디터 ----
+.vscode/
+.idea/
+*.swp
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
