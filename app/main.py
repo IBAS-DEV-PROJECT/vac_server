@@ -17,7 +17,9 @@ from app.domains.insight.router import router as insight_router
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
-    await init_db()
+    # 운영에서는 Alembic 마이그레이션으로 스키마를 관리하므로 자동 생성하지 않는다.
+    if settings.auto_create_tables:
+        await init_db()
     yield
 
 

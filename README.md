@@ -15,11 +15,29 @@ uvicorn app.main:app --reload
 - API 문서: http://127.0.0.1:8000/docs
 - Base URL: `/api/v1`
 
+로컬에서는 `AUTO_CREATE_TABLES=true`(기본값)라 앱 기동 시 테이블이 자동 생성된다.
+운영과 동일하게 마이그레이션으로 스키마를 만들려면 `alembic upgrade head` 를 사용한다.
+
 ## 테스트
 
 ```bash
 pytest
 ```
+
+## 배포
+
+AWS Lambda + API Gateway + Aurora Serverless v2 서버리스 구성.
+
+```bash
+sam build
+sam deploy --guided \
+  --parameter-overrides VpcId=vpc-xxxx PrivateSubnetIds=subnet-aaa,subnet-bbb
+
+# 배포 후 스키마 마이그레이션 1회 실행
+aws lambda invoke --function-name <MigrationFunctionName> /dev/stdout
+```
+
+자세한 내용은 [docs/deployment.md](docs/deployment.md) 참고.
 
 ## 코드 스타일
 
@@ -31,4 +49,5 @@ black app tests && isort app tests && ruff check app tests
 
 - API 명세서: [docs/api-spec.md](docs/api-spec.md)
 - 기능 명세서: [docs/feature-spec.md](docs/feature-spec.md)
+- 배포 가이드: [docs/deployment.md](docs/deployment.md)
 - 개발 컨벤션: [.claude/rules/](.claude/rules/)

@@ -1,5 +1,8 @@
 -r requirements.txt
 
+# ---- 마이그레이션 ----
+alembic==1.19.0
+
 # ---- 테스트 ----
 pytest==9.1.1
 pytest-asyncio==1.4.0
@@ -9,3 +12,6 @@ httpx==0.28.1
 black==26.5.1
 isort==8.0.1
 ruff==0.16.2
+
+# ---- 인프라 ----
+cfn-lint==1.54.0
