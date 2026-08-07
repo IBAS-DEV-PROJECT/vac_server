@@ -1,0 +1,287 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: vac API - FastAPI on Lambda + API Gateway + Aurora Serverless v2 (PostgreSQL)
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Lambda와 Aurora를 배치할 VPC
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Lambda/RDS Proxy/Aurora를 배치할 프라이빗 서브넷 (서로 다른 AZ 2개 이상)
+  DBName:
+    Type: String
+    Default: vac
+  DBMinCapacity:
+    Type: Number
+    Default: 0.5
+    Description: Aurora Serverless v2 최소 ACU (0 으로 두면 자동 일시정지)
+  DBMaxCapacity:
+    Type: Number
+    Default: 4
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        AUTO_CREATE_TABLES: "false"
+        DEBUG: "false"
+
+Resources:
+  # ---------------------------------------------------------------- 네트워크
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vac Lambda functions
+      VpcId: !Ref VpcId
+
+  ProxySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vac RDS Proxy
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+          Description: Lambda -> RDS Proxy
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vac Aurora cluster
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ProxySecurityGroup
+          Description: RDS Proxy -> Aurora
+
+  # ---------------------------------------------------------------- 시크릿
+  DBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: vac Aurora master credentials
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "vacadmin"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        # asyncpg URL 파싱과 충돌하지 않도록 일부 특수문자를 제외한다.
+        ExcludeCharacters: '"@/\''`'
+
+  JwtSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: vac JWT signing key
+      GenerateSecretString:
+        SecretStringTemplate: "{}"
+        GenerateStringKey: secret_key
+        PasswordLength: 64
+        ExcludePunctuation: true
+
+  # ---------------------------------------------------------- Aurora Serverless v2
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: vac Aurora subnet group
+      SubnetIds: !Ref PrivateSubnetIds
+
+  DBCluster:
+    Type: AWS::RDS::DBCluster
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      Engine: aurora-postgresql
+      EngineVersion: "17.5"
+      DatabaseName: !Ref DBName
+      MasterUsername: !Sub "{{resolve:secretsmanager:${DBSecret}:SecretString:username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${DBSecret}:SecretString:password}}"
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DBSecurityGroup
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: !Ref DBMinCapacity
+        MaxCapacity: !Ref DBMaxCapacity
+      StorageEncrypted: true
+      BackupRetentionPeriod: 7
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref DBCluster
+      Engine: aurora-postgresql
+      DBInstanceClass: db.serverless
+      PubliclyAccessible: false
+
+  DBSecretAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref DBSecret
+      TargetId: !Ref DBCluster
+      TargetType: AWS::RDS::DBCluster
+
+  # ---------------------------------------------------------------- RDS Proxy
+  ProxyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: rds.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ReadDBSecret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref DBSecret
+
+  DBProxy:
+    Type: AWS::RDS::DBProxy
+    DependsOn: DBSecretAttachment
+    Properties:
+      DBProxyName: !Sub "${AWS::StackName}-proxy"
+      EngineFamily: POSTGRESQL
+      RoleArn: !GetAtt ProxyRole.Arn
+      Auth:
+        - AuthScheme: SECRETS
+          SecretArn: !Ref DBSecret
+          IAMAuth: DISABLED
+      VpcSubnetIds: !Ref PrivateSubnetIds
+      VpcSecurityGroupIds:
+        - !Ref ProxySecurityGroup
+      RequireTLS: true
+      IdleClientTimeout: 1800
+
+  DBProxyTargetGroup:
+    Type: AWS::RDS::DBProxyTargetGroup
+    Properties:
+      DBProxyName: !Ref DBProxy
+      TargetGroupName: default
+      DBClusterIdentifiers:
+        - !Ref DBCluster
+      ConnectionPoolConfigurationInfo:
+        MaxConnectionsPercent: 90
+        MaxIdleConnectionsPercent: 50
+        ConnectionBorrowTimeout: 120
+
+  # ---------------------------------------------------------------- API
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref AWS::StackName
+      # 필요 시 CORS 허용 오리진을 실제 클라이언트 도메인으로 좁힌다.
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+        AllowMethods:
+          - GET
+          - POST
+          - DELETE
+          - OPTIONS
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: .
+      Dockerfile: Dockerfile
+      DockerTag: api
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command:
+          - app.lambda_handler.handler
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_SECRET_ARN: !Ref DBSecret
+          DB_HOST: !GetAtt DBProxy.Endpoint
+          DB_NAME: !Ref DBName
+          JWT_SECRET_ARN: !Ref JwtSecret
+          # API Gateway 스테이지 경로를 URL에서 제거한다.
+          API_GATEWAY_BASE_PATH: !Sub "/${AWS::StackName}"
+      Policies:
+        - VPCAccessPolicy: {}
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref DBSecret
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref JwtSecret
+      Events:
+        Root:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /
+            Method: ANY
+        Proxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+
+  ApiFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ApiFunction}"
+      RetentionInDays: !Ref LogRetentionDays
+
+  # 배포 후 수동/파이프라인에서 1회 호출하여 스키마를 마이그레이션한다.
+  MigrationFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: .
+      Dockerfile: Dockerfile
+      DockerTag: migration
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command:
+          - app.lambda_handler.migrate_handler
+      Timeout: 300
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_SECRET_ARN: !Ref DBSecret
+          DB_HOST: !GetAtt DBProxy.Endpoint
+          DB_NAME: !Ref DBName
+      Policies:
+        - VPCAccessPolicy: {}
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref DBSecret
+
+Outputs:
+  ApiUrl:
+    Description: API Base URL
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/${AWS::StackName}/api/v1"
+  ProxyEndpoint:
+    Description: RDS Proxy endpoint
+    Value: !GetAtt DBProxy.Endpoint
+  MigrationFunctionName:
+    Description: alembic upgrade head 를 실행하는 Lambda 함수명
+    Value: !Ref MigrationFunction
+  DBSecretArn:
+    Description: Aurora 접속 정보 시크릿
+    Value: !Ref DBSecret

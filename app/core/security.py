@@ -30,7 +30,9 @@ def create_access_token(user_id: str) -> str:
         "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
         "jti": uuid.uuid4().hex,
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return jwt.encode(
+        payload, settings.resolved_secret_key(), algorithm=settings.algorithm
+    )
 
 
 def decode_access_token(token: str) -> str:
@@ -41,7 +43,7 @@ def decode_access_token(token: str) -> str:
     """
     try:
         payload = jwt.decode(
-            token, settings.secret_key, algorithms=[settings.algorithm]
+            token, settings.resolved_secret_key(), algorithms=[settings.algorithm]
         )
     except jwt.PyJWTError as exc:
         raise TokenExpiredException from exc

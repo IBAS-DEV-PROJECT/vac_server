@@ -39,3 +39,7 @@ Thumbs.db
 
 # ---- 로컬 SQLite DB ----
 *.db
+
+# ---- AWS SAM ----
+.aws-sam/
+samconfig.toml
