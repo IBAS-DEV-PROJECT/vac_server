@@ -11,6 +11,7 @@ from app.db.session import init_db
 from app.domains.auth.router import router as auth_router
 from app.domains.concern.router import router as concern_router
 from app.domains.home.router import router as home_router
+from app.domains.insight.router import router as insight_router
 
 
 @asynccontextmanager
@@ -38,6 +39,7 @@ api_router = APIRouter(prefix=settings.api_v1_prefix)
 api_router.include_router(auth_router)
 api_router.include_router(home_router)
 api_router.include_router(concern_router)
+api_router.include_router(insight_router)
 
 app.include_router(api_router)
 
