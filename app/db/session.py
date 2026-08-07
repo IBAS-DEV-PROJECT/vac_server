@@ -14,6 +14,7 @@ from app.db.base import Base
 MODEL_MODULES = (
     "app.domains.user.models",
     "app.domains.auth.models",
+    "app.domains.concern.models",
 )
 
 engine = create_async_engine(settings.database_url, echo=settings.debug, future=True)

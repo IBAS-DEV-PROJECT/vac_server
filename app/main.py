@@ -9,6 +9,7 @@ from app.core.exceptions import AppException
 from app.core.logging import setup_logging
 from app.db.session import init_db
 from app.domains.auth.router import router as auth_router
+from app.domains.concern.router import router as concern_router
 
 
 @asynccontextmanager
@@ -34,6 +35,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
 
 api_router = APIRouter(prefix=settings.api_v1_prefix)
 api_router.include_router(auth_router)
+api_router.include_router(concern_router)
 
 app.include_router(api_router)
 
