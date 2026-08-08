@@ -3,12 +3,22 @@ Transform: AWS::Serverless-2016-10-31
 Description: vac API - FastAPI on Lambda + API Gateway + Aurora Serverless v2 (PostgreSQL)
 
 Parameters:
+  ImageUri:
+    Type: String
+    Description: >-
+      ECR에 푸시한 컨테이너 이미지 URI. API 함수와 마이그레이션 함수가 같은 이미지를
+      공유하고 ImageConfig.Command 로 핸들러만 구분한다.
+      예: 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/vac-api:latest
+    AllowedPattern: "^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/.+$"
+    ConstraintDescription: "계정ID.dkr.ecr.리전.amazonaws.com/리포지토리:태그 형식이어야 한다"
   VpcId:
     Type: AWS::EC2::VPC::Id
     Description: Lambda와 Aurora를 배치할 VPC
   PrivateSubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: Lambda/RDS Proxy/Aurora를 배치할 프라이빗 서브넷 (서로 다른 AZ 2개 이상)
+    Description: >-
+      Lambda/RDS Proxy/Aurora를 배치할 프라이빗 서브넷 (서로 다른 AZ 2개 이상).
+      VPC 엔드포인트 제약으로 한 AZ당 서브넷은 1개만 선택한다.
   DBName:
     Type: String
     Default: vac
@@ -52,7 +62,7 @@ Resources:
           FromPort: 5432
           ToPort: 5432
           SourceSecurityGroupId: !Ref LambdaSecurityGroup
-          Description: Lambda -> RDS Proxy
+          Description: Lambda to RDS Proxy
 
   DBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -64,7 +74,33 @@ Resources:
           FromPort: 5432
           ToPort: 5432
           SourceSecurityGroupId: !Ref ProxySecurityGroup
-          Description: RDS Proxy -> Aurora
+          Description: RDS Proxy to Aurora
+
+  # 프라이빗 서브넷에는 인터넷 경로가 없으므로, Lambda가 Secrets Manager를 호출하려면
+  # NAT Gateway 또는 아래 인터페이스 엔드포인트가 필요하다 (엔드포인트 쪽이 저렴하다).
+  SecretsManagerEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vac Secrets Manager VPC endpoint
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+          Description: Lambda to Secrets Manager endpoint
+
+  SecretsManagerEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
+      VpcEndpointType: Interface
+      # VPC의 DNS 이름을 엔드포인트로 해석시켜 boto3 코드를 수정하지 않아도 되게 한다.
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref PrivateSubnetIds
+      SecurityGroupIds:
+        - !Ref SecretsManagerEndpointSecurityGroup
 
   # ---------------------------------------------------------------- 시크릿
   DBSecret:
@@ -103,6 +139,9 @@ Resources:
       Engine: aurora-postgresql
       EngineVersion: "17.5"
       DatabaseName: !Ref DBName
+      # RDS Data API. 클러스터가 프라이빗 서브넷에 있어도 콘솔 쿼리 편집기와
+      # aws rds-data CLI 로 SQL 을 실행할 수 있다. 접근은 IAM + 시크릿으로 통제된다.
+      EnableHttpEndpoint: true
       MasterUsername: !Sub "{{resolve:secretsmanager:${DBSecret}:SecretString:username}}"
       MasterUserPassword: !Sub "{{resolve:secretsmanager:${DBSecret}:SecretString:password}}"
       DBSubnetGroupName: !Ref DBSubnetGroup
@@ -198,12 +237,10 @@ Resources:
 
   ApiFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      DockerContext: .
-      Dockerfile: Dockerfile
-      DockerTag: api
+    DependsOn: SecretsManagerEndpoint
     Properties:
       PackageType: Image
+      ImageUri: !Ref ImageUri
       ImageConfig:
         Command:
           - app.lambda_handler.handler
@@ -248,12 +285,10 @@ Resources:
   # 배포 후 수동/파이프라인에서 1회 호출하여 스키마를 마이그레이션한다.
   MigrationFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      DockerContext: .
-      Dockerfile: Dockerfile
-      DockerTag: migration
+    DependsOn: SecretsManagerEndpoint
     Properties:
       PackageType: Image
+      ImageUri: !Ref ImageUri
       ImageConfig:
         Command:
           - app.lambda_handler.migrate_handler
@@ -283,5 +318,8 @@ Outputs:
     Description: alembic upgrade head 를 실행하는 Lambda 함수명
     Value: !Ref MigrationFunction
   DBSecretArn:
-    Description: Aurora 접속 정보 시크릿
+    Description: Aurora 접속 정보 시크릿 (쿼리 편집기 인증에 사용)
     Value: !Ref DBSecret
+  DBClusterArn:
+    Description: Aurora 클러스터 ARN (aws rds-data execute-statement 에 사용)
+    Value: !Sub "arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:${DBCluster}"
