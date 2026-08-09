@@ -213,7 +213,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
     "ongoingConcerns": [
       {
         "concernId": "uuid",
-        "title": "A사 vs B사",
+        "concern": "A사 vs B사",
         "topic": "일",
         "lastRecordDate": "2026-07-24"
       }
