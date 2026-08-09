@@ -37,7 +37,7 @@ class HomeService:
             ongoing_concerns=[
                 OngoingConcernResponse(
                     concern_id=concern.id,
-                    title=concern.title,
+                    concern=concern.concern,
                     topic=concern.topic,
                     last_record_date=last_record_at.date(),
                 )

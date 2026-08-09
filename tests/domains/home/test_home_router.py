@@ -41,7 +41,7 @@ async def test_get_home_returns_at_most_three_ongoing_concerns(
     data = response.json()["data"]
     assert data["ongoingConcernCount"] == 4
     # 마지막 기록일이 오래된 순으로 최대 3건만 노출한다.
-    assert [concern["title"] for concern in data["ongoingConcerns"]] == [
+    assert [item["concern"] for item in data["ongoingConcerns"]] == [
         "고민 0",
         "고민 1",
         "고민 2",

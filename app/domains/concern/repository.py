@@ -12,12 +12,14 @@ class ConcernRepository:
         self.session = session
 
     async def create_concern(
-        self, user_id: str, title: str, topic: str, status: str
+        self, user_id: str, concern: str, topic: str, status: str
     ) -> Concern:
-        concern = Concern(user_id=user_id, title=title, topic=topic, status=status)
-        self.session.add(concern)
+        new_concern = Concern(
+            user_id=user_id, concern=concern, topic=topic, status=status
+        )
+        self.session.add(new_concern)
         await self.session.flush()
-        return concern
+        return new_concern
 
     async def create_record(
         self, concern_id: str, user_id: str, decision: str, reason: str, value: str

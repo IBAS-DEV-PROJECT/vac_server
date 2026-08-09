@@ -26,7 +26,7 @@ class ConcernService:
         """새 고민과 첫 기록을 함께 생성한다."""
         concern = await self.concerns.create_concern(
             user_id=user_id,
-            title=payload.concern,
+            concern=payload.concern,
             topic=payload.topic,
             status=payload.concern_status,
         )
@@ -46,7 +46,7 @@ class ConcernService:
             ongoing_concerns=[
                 PendingConcernResponse(
                     concern_id=concern.id,
-                    concern=concern.title,
+                    concern=concern.concern,
                     topic=concern.topic,
                     last_record_date=last_record_at.date(),
                     record_count=record_count,
@@ -66,7 +66,7 @@ class ConcernService:
             concern_id, newest_first=True
         )
         return PastRecordListResponse(
-            concern=concern.title,
+            concern=concern.concern,
             records=[
                 PastRecordResponse(
                     record_id=record.id,
@@ -106,7 +106,7 @@ class ConcernService:
             concern_id, newest_first=False
         )
         return ConcernTimelineResponse(
-            concern=concern.title,
+            concern=concern.concern,
             topic=concern.topic,
             records=[
                 TimelineRecordResponse(

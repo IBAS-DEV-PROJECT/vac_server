@@ -5,7 +5,7 @@ from app.common.response import CamelModel
 
 class OngoingConcernResponse(CamelModel):
     concern_id: str
-    title: str
+    concern: str
     topic: str
     last_record_date: date
 

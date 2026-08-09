@@ -83,7 +83,7 @@ class InsightService:
                     decision=row.decision,
                     value=row.value,
                     concern_id=row.concern_id,
-                    concern=row.concern_title,
+                    concern=row.concern,
                     record_date=row.created_at.date(),
                 )
                 for row in rows

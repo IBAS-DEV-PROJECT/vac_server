@@ -17,7 +17,7 @@ class RecordRow:
     value: str
     created_at: datetime
     concern_id: str
-    concern_title: str
+    concern: str
     topic: str
 
 
@@ -57,7 +57,7 @@ class InsightRepository:
                 value=record.value,
                 created_at=record.created_at,
                 concern_id=concern.id,
-                concern_title=concern.title,
+                concern=concern.concern,
                 topic=concern.topic,
             )
             for record, concern in result

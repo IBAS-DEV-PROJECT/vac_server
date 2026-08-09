@@ -14,7 +14,7 @@ class Concern(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         index=True,
     )
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    concern: Mapped[str] = mapped_column(String(255), nullable=False)
     topic: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     status: Mapped[str] = mapped_column(
         String(20), default=ConcernStatus.PENDING, nullable=False, index=True
