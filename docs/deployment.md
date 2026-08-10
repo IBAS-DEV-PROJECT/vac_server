@@ -3,9 +3,9 @@
 AWS Lambda + API Gateway(HTTP API) + Aurora Serverless v2(PostgreSQL) 서버리스 구성.
 
 ```
-Client → API Gateway (HTTP API v2) → Lambda (FastAPI + Mangum) → RDS Proxy → Aurora Serverless v2
-                                          ↓                          ↑
-                                    CloudWatch Logs        Secrets Manager (VPC 엔드포인트)
+Client → API Gateway (HTTP API v2) → Lambda (FastAPI + Mangum) → Aurora Serverless v2
+                                          ↓                ↑
+                                    CloudWatch Logs   Secrets Manager (VPC 엔드포인트)
 ```
 
 배포는 **AWS 콘솔의 CloudFormation**으로 한다. 컨테이너 이미지 빌드/푸시만 로컬에서
@@ -67,16 +67,16 @@ aws ecr describe-images --repository-name vac --region $REGION \
 | `ImageUri` | 1단계에서 푸시한 이미지 URI |
 | `VpcId` | 드롭다운에서 선택 |
 | `PrivateSubnetIds` | 프라이빗 서브넷 2개 이상 (AZ당 1개) |
-| `DBMinCapacity` | 개발 단계면 `0` (유휴 시 자동 일시정지) |
+| `DBMinCapacity` | 기본값 `0` (유휴 시 자동 일시정지). 상시 응답성이 필요하면 `0.5` |
 
 마지막 검토 화면에서 아래 두 가지를 체크해야 한다.
 
 - **`CAPABILITY_IAM`** — 스택이 IAM 역할을 생성하는 것에 대한 승인
 - **`CAPABILITY_AUTO_EXPAND`** — SAM `Transform` 처리에 필요. 빼면 즉시 실패한다.
 
-생성에는 **15~25분** 정도 걸린다 (Aurora와 RDS Proxy가 오래 걸린다). 진행 상황과
+생성에는 **10~20분** 정도 걸린다 (Aurora 클러스터가 오래 걸린다). 진행 상황과
 실패 원인은 **이벤트** 탭에서 확인한다. 완료되면 **출력** 탭에 `ApiUrl`,
-`MigrationFunctionName`, `ProxyEndpoint` 가 나온다.
+`MigrationFunctionName`, `DBEndpoint` 가 나온다.
 
 > 생성에 실패하면 스택은 자동 롤백되어 `ROLLBACK_COMPLETE` 가 되는데, 이 상태에서는
 > **업데이트가 불가능하다.** 스택을 삭제하고 처음부터 다시 생성해야 한다.
@@ -151,10 +151,22 @@ Lambda는 실행 환경이 freeze/thaw 되면서 풀에 남은 커넥션이 끊�
 커넥션이 늘어난다. 따라서:
 
 - 애플리케이션은 **`NullPool`** (풀링하지 않음) — `app/db/session.py`
-- 실제 풀링은 **RDS Proxy**가 담당
-- RDS Proxy가 커넥션을 다중화하므로 **prepared statement 캐시를 비활성화**
-  (`prepared_statement_cache_size=0`, `statement_cache_size=0`)
-- RDS Proxy는 `RequireTLS: true` 이므로 asyncpg 접속 시 `ssl=require`
+- Lambda는 **Aurora 클러스터 엔드포인트에 직접** 접속한다
+- 커넥션 수 상한은 **계정의 Lambda 동시 실행 한도**가 대신한다 (아래 참고)
+- asyncpg 접속 시 `ssl=require`
+
+> **동시성 상한.** 원래는 API 함수에 `ReservedConcurrentExecutions` 를 걸어 커넥션
+> 수를 묶으려 했으나, AWS가 미예약 동시성을 항상 10 이상 남기도록 강제하기 때문에
+> 계정 한도가 30 미만이면 설정 자체가 거부된다
+> (`decreases account's UnreservedConcurrentExecution below its minimum value of [10]`).
+> 이 계정은 한도가 낮아 그 한도가 곧 커넥션 상한이므로 별도 예약을 두지 않는다.
+> 나중에 동시성 한도를 증설하면 그때 예약값을 다시 넣는다.
+
+> **RDS Proxy를 쓰지 않는 이유.** Proxy는 커넥션 폭주를 흡수해 주지만 트래픽이 0이어도
+> 월 ~$22의 고정비가 붙는다. 현재 트래픽 규모에서는 동시 실행 상한(20)만으로 Aurora가
+> 충분히 커넥션을 감당하므로 제거했다. Proxy를 거치지 않으면 prepared statement 캐시를
+> 끌 필요도 없다. 동시 실행이 수십~수백 건으로 꾸준해지거나 DB IAM 인증이 필요해지면
+> 그때 다시 도입한다.
 
 > `ssl=require` 는 암호화는 하되 CA 검증은 하지 않는다(libpq의 `require` 와 동일).
 > `verify-full` 로 올리려면 RDS CA 번들을 이미지에 포함하고 `DB_SSL_MODE` 를 바꾼다.
@@ -171,11 +183,16 @@ DB 접속 정보와 JWT 서명 키는 Secrets Manager에 저장하고, Lambda에
 
 | 항목 | 비용 | 비고 |
 | --- | --- | --- |
-| Aurora Serverless v2 | ~$45 (0.5 ACU 기준) | `DBMinCapacity=0` 이면 유휴 시 거의 0 |
-| RDS Proxy | ~$22 | vCPU 기준 시간당 과금 |
+| Aurora Serverless v2 | ~$45 (0.5 ACU 기준) | 기본값 `DBMinCapacity=0` 이면 유휴 시 거의 0 |
 | Secrets Manager 엔드포인트 | ~$8 | NAT Gateway(~$45) 대신 사용 |
+| ~~RDS Proxy~~ | ~~~$22~~ | 비용 대비 이점이 없어 제거 (위 "DB 커넥션" 참고) |
 
-`DBMinCapacity=0` 은 유휴 시 자동 일시정지되지만 첫 요청에 수 초가 추가된다.
+`DBMinCapacity=0` 은 유휴 시 자동 일시정지되지만 첫 요청에 수 초가 추가된다. 콜드
+스타트(1~3초)와 겹치면 첫 응답이 10초 가까이 걸릴 수 있으므로, 실사용자가 붙는
+시점에는 `0.5` 로 올리는 것을 검토한다.
+
+> 위 금액은 서울 리전 기준 개략치다. AWS 요금은 리전·과금 방식에 따라 달라지므로
+> 실제 값은 Pricing Calculator로 확인한다.
 
 ### 콜드 스타트
 

@@ -28,7 +28,7 @@ pytest
 
 ## 배포
 
-AWS Lambda + API Gateway(HTTP API) + RDS Proxy + Aurora Serverless v2 서버리스 구성.
+AWS Lambda + API Gateway(HTTP API) + Aurora Serverless v2 서버리스 구성.
 
 컨테이너 이미지 빌드/푸시만 로컬에서 하고, 나머지 리소스는 `template.yaml` 한 장으로
 **AWS 콘솔의 CloudFormation** 이 만든다.

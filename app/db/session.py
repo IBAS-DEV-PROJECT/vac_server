@@ -23,18 +23,14 @@ MODEL_MODULES = (
 def _engine_kwargs() -> dict[str, Any]:
     """실행 환경에 맞는 엔진 옵션을 만든다.
 
-    Lambda는 실행 환경이 freeze/thaw 되면서 풀에 남은 커넥션이 끊기고, 동시 실행
-    수만큼 커넥션이 늘어난다. 따라서 풀링은 RDS Proxy에 맡기고 애플리케이션은
-    NullPool 을 사용한다.
+    Lambda는 실행 환경이 freeze/thaw 되면서 풀에 남은 커넥션이 끊기므로, 풀을 두지
+    않고(NullPool) 요청마다 새 커넥션을 연다. 동시 실행 수가 곧 DB 커넥션 수가 되는데,
+    그 상한은 Lambda 의 예약 동시성(template.yaml)으로 통제한다.
     """
     kwargs: dict[str, Any] = {"echo": settings.debug}
     if settings.is_lambda:
         kwargs["poolclass"] = NullPool
-        kwargs["connect_args"] = {
-            # RDS Proxy 경유 시 서버 사이드 prepared statement 재사용이 불가능하다.
-            "statement_cache_size": 0,
-            "ssl": settings.db_ssl_mode,
-        }
+        kwargs["connect_args"] = {"ssl": settings.db_ssl_mode}
     return kwargs
 
 

@@ -12,7 +12,7 @@ async def test_create_user_with_valid_data_returns_201(client: AsyncClient):
 
 ## 인프라
 
-AWS Lambda + API Gateway(HTTP API) + RDS Proxy + Aurora Serverless v2(PostgreSQL)
+AWS Lambda + API Gateway(HTTP API) + Aurora Serverless v2(PostgreSQL)
 서버리스 아키텍처. DB 접근은 SQLAlchemy(asyncpg) + Alembic 마이그레이션.
 
 - 인프라 정의: `template.yaml` (CloudFormation/SAM)

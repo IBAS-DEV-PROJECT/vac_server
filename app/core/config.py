@@ -25,11 +25,11 @@ class Settings(BaseSettings):
     # ---- AWS (Lambda + Aurora Serverless v2) ----
     # 설정되면 Secrets Manager에서 DB 접속 정보를 읽어 database_url 을 대체한다.
     db_secret_arn: str | None = None
-    # Aurora 클러스터가 아니라 RDS Proxy 엔드포인트로 접속하기 위해 host 를 덮어쓴다.
+    # 시크릿에 담긴 host 대신 사용할 접속 대상. 비워두면 시크릿 값을 그대로 쓴다.
     db_host: str | None = None
     db_port: int | None = None
     db_name: str | None = None
-    # RDS Proxy는 RequireTLS 를 켜두므로 asyncpg 접속 시 TLS를 요구한다.
+    # Aurora PostgreSQL은 TLS 접속을 요구하므로 asyncpg 접속 시 TLS를 켠다.
     db_ssl_mode: str = "require"
     # 설정되면 Secrets Manager에서 JWT 서명 키를 읽어 secret_key 를 대체한다.
     jwt_secret_arn: str | None = None
@@ -56,11 +56,7 @@ class Settings(BaseSettings):
         port = self.db_port or secret.get("port", 5432)
         database = self.db_name or secret.get("dbname", "vac")
 
-        return (
-            f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{database}"
-            # RDS Proxy가 커넥션을 다중화하므로 서버 사이드 prepared statement를 끈다.
-            "?prepared_statement_cache_size=0"
-        )
+        return f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{database}"
 
     def resolved_secret_key(self) -> str:
         """JWT 서명에 사용할 키를 반환한다."""
