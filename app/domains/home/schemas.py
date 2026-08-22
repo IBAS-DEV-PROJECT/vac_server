@@ -7,6 +7,7 @@ class OngoingConcernResponse(CamelModel):
     concern_id: str
     concern: str
     topic: str
+    topic_other: str | None = None
     last_record_date: date
 
 

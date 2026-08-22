@@ -39,6 +39,7 @@ class HomeService:
                     concern_id=concern.id,
                     concern=concern.concern,
                     topic=concern.topic,
+                    topic_other=concern.topic_other,
                     last_record_date=last_record_at.date(),
                 )
                 for concern, last_record_at, _ in ongoing_rows

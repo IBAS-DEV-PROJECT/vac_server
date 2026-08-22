@@ -91,3 +91,15 @@ async def test_get_home_excludes_resolved_concerns_from_ongoing(
     assert data["ongoingConcernCount"] == 0
     assert data["ongoingConcerns"] == []
     assert len(data["recentRecords"]) == 1
+
+
+async def test_get_home_returns_topic_other_for_etc_concern(
+    client: AsyncClient, auth_headers: dict[str, str]
+):
+    await create_concern(client, auth_headers, topic="기타", topicOther="이사")
+
+    response = await client.get("/api/v1/home", headers=auth_headers)
+
+    concern = response.json()["data"]["ongoingConcerns"][0]
+    assert concern["topic"] == "기타"
+    assert concern["topicOther"] == "이사"

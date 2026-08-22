@@ -164,3 +164,37 @@ async def test_get_topic_records_returns_records_newest_first(
     assert data["records"][0]["concern"] == "헬스 다시 시작할까"
     assert data["records"][0]["concernId"] == concern_id
     assert data["records"][0]["recordDate"]
+
+
+async def test_get_insights_groups_etc_topic_into_single_entry(
+    client: AsyncClient, auth_headers: dict[str, str]
+):
+    await create_concern(client, auth_headers, topic="기타", topicOther="이사")
+    await create_concern(client, auth_headers, topic="기타", topicOther="취미")
+
+    response = await client.get(
+        "/api/v1/insights", headers=auth_headers, params=today_params()
+    )
+
+    value_by_topic = response.json()["data"]["valueByTopic"]
+    # 기타는 사용자 입력값과 무관하게 하나로 묶어 집계한다.
+    assert len(value_by_topic) == 1
+    assert value_by_topic[0]["topic"] == "기타"
+    assert value_by_topic[0]["topicOther"] is None
+    assert value_by_topic[0]["count"] == 2
+
+
+async def test_get_topic_records_returns_all_etc_records(
+    client: AsyncClient, auth_headers: dict[str, str]
+):
+    await create_concern(client, auth_headers, topic="기타", topicOther="이사")
+    await create_concern(client, auth_headers, topic="기타", topicOther="취미")
+
+    response = await client.get(
+        "/api/v1/insights/기타/records", headers=auth_headers, params=today_params()
+    )
+
+    data = response.json()["data"]
+    assert data["topic"] == "기타"
+    assert data["topicOther"] is None
+    assert data["recordCount"] == 2

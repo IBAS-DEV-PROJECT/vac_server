@@ -150,3 +150,44 @@ async def test_get_timeline_returns_records_oldest_first(
         "아직 못 정함",
         "A사로 결정",
     ]
+
+
+async def test_create_concern_with_etc_topic_stores_topic_other(
+    client: AsyncClient, auth_headers: dict[str, str]
+):
+    concern_id = await create_concern(
+        client, auth_headers, topic="기타", topicOther="이사"
+    )
+
+    pending = await client.get("/api/v1/concerns/pending", headers=auth_headers)
+    concern = pending.json()["data"]["ongoingConcerns"][0]
+    assert concern["topic"] == "기타"
+    assert concern["topicOther"] == "이사"
+
+    timeline = await client.get(
+        f"/api/v1/concerns/{concern_id}/timeline", headers=auth_headers
+    )
+    assert timeline.json()["data"]["topicOther"] == "이사"
+
+
+async def test_create_concern_with_etc_topic_without_topic_other_returns_422(
+    client: AsyncClient, auth_headers: dict[str, str]
+):
+    response = await client.post(
+        "/api/v1/concerns",
+        headers=auth_headers,
+        json={**NEW_CONCERN, "topic": "기타"},
+    )
+
+    assert response.status_code == 422
+
+
+async def test_create_concern_with_normal_topic_ignores_topic_other(
+    client: AsyncClient, auth_headers: dict[str, str]
+):
+    await create_concern(client, auth_headers, topic="일", topicOther="이사")
+
+    pending = await client.get("/api/v1/concerns/pending", headers=auth_headers)
+    concern = pending.json()["data"]["ongoingConcerns"][0]
+    assert concern["topic"] == "일"
+    assert concern["topicOther"] is None

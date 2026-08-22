@@ -242,6 +242,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 #### 새 고민 작성
 
 - `POST /concerns`
+- `topicOther`: `topic`이 `기타`일 때만 사용하며 이 경우 필수다. 다른 주제에서는 값을 보내도 무시한다(`null` 저장).
 
 **Request**
 
@@ -331,6 +332,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 - `valueByTopic`: **기록 수가 많은 순**으로 정렬한다.
 - `trend`: 조회 기간을 **항상 4개 구간**으로 균등 분할하므로 배열 길이는 4로 고정된다. 구간별 `startDate`/`endDate`는 서버가 계산한다.
 - `largestIncrease` / `largestDecrease`: 증감폭이 가장 큰 가치를 반환하며, 동률인 경우에만 복수 항목을 포함한다.
+- `기타` 주제는 `topicOther` 값과 무관하게 **하나로 묶어** 집계한다. 따라서 집계 응답(`valueByTopic`, 기록 목록 조회)의 `topicOther`는 항상 `null`이다.
 
 **Response**
 

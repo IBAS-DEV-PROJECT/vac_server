@@ -28,6 +28,7 @@ class ConcernService:
             user_id=user_id,
             concern=payload.concern,
             topic=payload.topic,
+            topic_other=payload.topic_other,
             status=payload.concern_status,
         )
         record = await self.concerns.create_record(
@@ -48,6 +49,7 @@ class ConcernService:
                     concern_id=concern.id,
                     concern=concern.concern,
                     topic=concern.topic,
+                    topic_other=concern.topic_other,
                     last_record_date=last_record_at.date(),
                     record_count=record_count,
                 )
@@ -108,6 +110,7 @@ class ConcernService:
         return ConcernTimelineResponse(
             concern=concern.concern,
             topic=concern.topic,
+            topic_other=concern.topic_other,
             records=[
                 TimelineRecordResponse(
                     record_id=record.id,

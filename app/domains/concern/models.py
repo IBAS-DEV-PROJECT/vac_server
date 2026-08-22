@@ -16,6 +16,8 @@ class Concern(UUIDMixin, TimestampMixin, Base):
     )
     concern: Mapped[str] = mapped_column(String(255), nullable=False)
     topic: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    # topic이 "기타"일 때 사용자가 직접 입력한 주제명 (그 외 주제에서는 NULL)
+    topic_other: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(
         String(20), default=ConcernStatus.PENDING, nullable=False, index=True
     )
