@@ -215,6 +215,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
         "concernId": "uuid",
         "concern": "A사 vs B사",
         "topic": "일",
+		"topicOther": "", // topic이 기타일 경우 사용
         "lastRecordDate": "2026-07-24"
       }
     ],
@@ -248,6 +249,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 {
     "concern": "A사 vs B사",
 	"topic": "일",
+	"topicOther": "", // topic이 기타일 경우 사용
     "decision": "아직 못 정함 / A로 마음이 기움",
     "reason": "한 줄이면 충분해요",
     "value": "성장",
@@ -272,11 +274,12 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 				"concernId": "uuid",
 				"concern": "A사 vs B사",
 				"topic": "일",
-                "lastRecordDate": "2026-07-24",
-                "recordCount": 4
-            }
-        ]
-    }
+				"topicOther": "", // topic이 기타일 경우 사용
+				"lastRecordDate": "2026-07-24",
+				"recordCount": 4
+			}
+		]
+	}
 }
 ```
 
@@ -338,6 +341,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 	  "valueByTopic" : [
 			{
 			  "topic": "일",
+			  "topicOther": "", // topic이 기타일 경우 사용
 			  "valueDistribution": [
 				  { "value": "성장", "percentage": 62 }
 		        ],
@@ -381,6 +385,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 	"success": true,
 	"data": {
 		"topic": "건강",
+		"topicOther": "", // topic이 기타일 경우 사용
 		"records": [
 			{
 				"recordId": "uuid",
@@ -409,6 +414,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 	"data": {
 		"concern": "헬스 다시 시작할까",
 		"topic": "건강",
+		"topicOther": "", // topic이 기타일 경우 사용
 		"records": [
 			{
 				"recordId": "uuid",
