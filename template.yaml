@@ -88,7 +88,13 @@ Resources:
       VpcEndpointType: Interface
       # VPC의 DNS 이름을 엔드포인트로 해석시켜 boto3 코드를 수정하지 않아도 되게 한다.
       PrivateDnsEnabled: true
-      SubnetIds: !Ref PrivateSubnetIds
+      # 인터페이스 엔드포인트는 배치한 서브넷마다 ENI가 생기고 ENI 단위로 시간당
+      # 과금된다. 시크릿 조회는 콜드 스타트당 1회뿐이라 AZ 하나로 충분하므로 첫 번째
+      # 서브넷에만 둔다(고정비 절반). 다른 AZ의 Lambda도 VPC 내부에서 그대로 접근한다.
+      # 대신 이 AZ에 장애가 나면 시크릿 조회가 막히므로, 가용성이 중요해지면
+      # !Ref PrivateSubnetIds 로 되돌린다.
+      SubnetIds:
+        - !Select [0, !Ref PrivateSubnetIds]
       SecurityGroupIds:
         - !Ref SecretsManagerEndpointSecurityGroup
 

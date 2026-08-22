@@ -143,6 +143,13 @@ API 함수와 마이그레이션 함수는 **같은 이미지**를 쓰고 `Image
 (`PrivateDnsEnabled: true` 라서 애플리케이션 코드는 수정할 필요가 없다).
 NAT Gateway로도 해결되지만 시간당 고정비가 엔드포인트보다 훨씬 비싸다.
 
+엔드포인트는 **서브넷 1개(첫 번째 프라이빗 서브넷)에만** 배치한다. 인터페이스
+엔드포인트는 서브넷마다 ENI가 생기고 ENI 단위로 시간당 과금되는데, 시크릿 조회는
+콜드 스타트당 1회뿐이라 AZ 하나로 충분하기 때문이다. 다른 AZ의 Lambda도 VPC 내부
+경로로 그대로 접근한다(크로스 AZ 데이터 요금은 시크릿 크기라 무시할 수준).
+그 AZ에 장애가 나면 시크릿 조회가 막히므로, 가용성이 중요해지면 `template.yaml` 의
+`SecretsManagerEndpoint.SubnetIds` 를 `!Ref PrivateSubnetIds` 로 되돌린다.
+
 CloudWatch Logs 전송은 Lambda 서비스가 처리하므로 별도 엔드포인트가 필요 없다.
 
 ### DB 커넥션
@@ -184,7 +191,7 @@ DB 접속 정보와 JWT 서명 키는 Secrets Manager에 저장하고, Lambda에
 | 항목 | 비용 | 비고 |
 | --- | --- | --- |
 | Aurora Serverless v2 | ~$45 (0.5 ACU 기준) | 기본값 `DBMinCapacity=0` 이면 유휴 시 거의 0 |
-| Secrets Manager 엔드포인트 | ~$8 | NAT Gateway(~$45) 대신 사용 |
+| Secrets Manager 엔드포인트 | ~$8 | NAT Gateway(~$45) 대신 사용. AZ(ENI) 1개당 요금이라 서브넷 1개에만 배치 |
 | ~~RDS Proxy~~ | ~~~$22~~ | 비용 대비 이점이 없어 제거 (위 "DB 커넥션" 참고) |
 
 `DBMinCapacity=0` 은 유휴 시 자동 일시정지되지만 첫 요청에 수 초가 추가된다. 콜드
