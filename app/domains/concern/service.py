@@ -73,6 +73,7 @@ class ConcernService:
                 PastRecordResponse(
                     record_id=record.id,
                     decision=record.decision,
+                    value=record.value,
                     created_at=record.created_at.date(),
                 )
                 for record in records

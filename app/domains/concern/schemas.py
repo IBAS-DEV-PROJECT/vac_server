@@ -60,6 +60,7 @@ class PendingConcernListResponse(CamelModel):
 class PastRecordResponse(CamelModel):
     record_id: str
     decision: str
+    value: str
     created_at: date
 
 

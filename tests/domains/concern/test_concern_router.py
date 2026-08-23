@@ -72,6 +72,7 @@ async def test_list_past_records_returns_records_newest_first(
         "B사로 기움",
         "아직 못 정함",
     ]
+    assert [record["value"] for record in data["records"]] == ["안정", "성장"]
 
 
 async def test_create_record_with_resolved_status_removes_concern_from_pending(
