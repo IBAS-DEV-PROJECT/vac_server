@@ -300,6 +300,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 			{
 				"recordId": "uuid",
 				"decision": "A사가 조금 더 마음에 남",
+				"value": "성장",
 				"createdAt": "2026-07-20"
 			}
 		]
