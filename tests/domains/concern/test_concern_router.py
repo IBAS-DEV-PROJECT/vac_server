@@ -147,6 +147,7 @@ async def test_get_timeline_returns_records_oldest_first(
     assert data["concern"] == "A사 vs B사"
     assert data["topic"] == "일"
     assert data["recordCount"] == 2
+    assert data["concernStatus"] == "RESOLVED"
     assert [record["decision"] for record in data["records"]] == [
         "아직 못 정함",
         "A사로 결정",

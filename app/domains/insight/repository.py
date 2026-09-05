@@ -19,6 +19,7 @@ class RecordRow:
     concern_id: str
     concern: str
     topic: str
+    concern_status: str
 
 
 class InsightRepository:
@@ -59,6 +60,7 @@ class InsightRepository:
                 concern_id=concern.id,
                 concern=concern.concern,
                 topic=concern.topic,
+                concern_status=concern.status,
             )
             for record, concern in result
         ]

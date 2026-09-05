@@ -164,6 +164,7 @@ async def test_get_topic_records_returns_records_newest_first(
     assert data["records"][0]["concern"] == "헬스 다시 시작할까"
     assert data["records"][0]["concernId"] == concern_id
     assert data["records"][0]["recordDate"]
+    assert data["records"][0]["concernStatus"] == "RESOLVED"
 
 
 async def test_get_insights_groups_etc_topic_into_single_entry(

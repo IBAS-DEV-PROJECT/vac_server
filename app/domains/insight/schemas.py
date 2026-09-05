@@ -1,5 +1,6 @@
 from datetime import date
 
+from app.common.constants import ConcernStatus
 from app.common.response import CamelModel
 
 
@@ -54,6 +55,7 @@ class TopicRecordResponse(CamelModel):
     concern_id: str
     concern: str
     record_date: date
+    concern_status: ConcernStatus
 
 
 class TopicRecordListResponse(CamelModel):

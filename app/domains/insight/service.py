@@ -85,6 +85,7 @@ class InsightService:
                     concern_id=row.concern_id,
                     concern=row.concern,
                     record_date=row.created_at.date(),
+                    concern_status=row.concern_status,
                 )
                 for row in rows
             ],

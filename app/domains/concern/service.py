@@ -121,5 +121,6 @@ class ConcernService:
                 )
                 for record in records
             ],
+            concern_status=concern.status,
             record_count=len(records),
         )

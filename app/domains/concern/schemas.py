@@ -81,4 +81,5 @@ class ConcernTimelineResponse(CamelModel):
     topic: str
     topic_other: str | None = None
     records: list[TimelineRecordResponse]
+    concern_status: ConcernStatus
     record_count: int
