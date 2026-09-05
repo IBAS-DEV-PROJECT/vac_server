@@ -1,6 +1,10 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time, timedelta
 
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.domains.concern.models import Record
 
 BASE_CONCERN = {
     "concern": "A사 vs B사",
@@ -199,3 +203,45 @@ async def test_get_topic_records_returns_all_etc_records(
     assert data["topic"] == "기타"
     assert data["topicOther"] is None
     assert data["recordCount"] == 2
+
+
+async def test_get_insights_trend_includes_period_values_with_zero_percentage(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    await create_concern(client, auth_headers, concern="이직", value="성장")
+    concern_id = await create_concern(
+        client, auth_headers, concern="운동", value="안정"
+    )
+
+    today = datetime.now(UTC).date()
+    start = today - timedelta(days=3)
+    async with session_factory() as session:
+        await session.execute(
+            update(Record)
+            .where(Record.concern_id == concern_id)
+            .values(created_at=datetime.combine(start, time(12, 0), tzinfo=UTC))
+        )
+        await session.commit()
+
+    response = await client.get(
+        "/api/v1/insights",
+        headers=auth_headers,
+        params={"startDate": start.isoformat(), "endDate": today.isoformat()},
+    )
+
+    trend = response.json()["data"]["trend"]
+    # 기간 전체에 등장한 가치는 기록이 없는 구간에도 0%로 포함된다.
+    assert all(
+        {item["value"] for item in bucket["valueDistribution"]} == {"성장", "안정"}
+        for bucket in trend
+    )
+    assert trend[0]["valueDistribution"] == [
+        {"value": "안정", "percentage": 100},
+        {"value": "성장", "percentage": 0},
+    ]
+    assert trend[-1]["valueDistribution"] == [
+        {"value": "성장", "percentage": 100},
+        {"value": "안정", "percentage": 0},
+    ]

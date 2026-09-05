@@ -1,5 +1,5 @@
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,12 +39,15 @@ class InsightService:
         rows = await self.insights.list_records(user_id, start, end, topics, values)
 
         buckets = split_buckets(period_start, period_end)
+        # 조회 기간 전체에 등장한 가치는 모든 구간에 포함하고, 해당 구간에
+        # 기록이 없으면 0%로 내려준다.
+        period_values = {row.value for row in rows}
         trend = [
             TrendResponse(
                 start_date=bucket_start,
                 end_date=bucket_end,
                 value_distribution=_value_distribution(
-                    _rows_in(rows, bucket_start, bucket_end)
+                    _rows_in(rows, bucket_start, bucket_end), period_values
                 ),
             )
             for bucket_start, bucket_end in buckets
@@ -99,10 +102,17 @@ def _rows_in(
     return [row for row in rows if start_date <= row.created_at.date() <= end_date]
 
 
-def _value_distribution(rows: Sequence[RecordRow]) -> list[ValueDistributionResponse]:
-    """가치별 비율(%)을 비율 내림차순으로 반환한다."""
+def _value_distribution(
+    rows: Sequence[RecordRow], values: Collection[str] | None = None
+) -> list[ValueDistributionResponse]:
+    """가치별 비율(%)을 비율 내림차순으로 반환한다.
+
+    values를 넘기면 rows에 없는 가치도 0%로 포함한다.
+    """
     total = len(rows)
     counts = Counter(row.value for row in rows)
+    for value in values or ():
+        counts.setdefault(value, 0)
     return [
         ValueDistributionResponse(value=value, percentage=to_percentage(count, total))
         for value, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
