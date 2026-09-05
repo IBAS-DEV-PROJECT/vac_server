@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
@@ -24,6 +25,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(title="vac API", version="1.0.0", lifespan=lifespan)
+
+# CORS는 애플리케이션에서 처리한다. API Gateway(HTTP API)에 CORS를 설정해도
+# 라우트가 `ANY /{proxy+}` 라 preflight(OPTIONS)까지 Lambda로 넘어오고,
+# 미들웨어가 없으면 FastAPI가 405를 돌려줘 브라우저가 요청을 차단한다.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_origin_regex=settings.cors_allow_origin_regex,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(AppException)

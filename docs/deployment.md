@@ -68,6 +68,7 @@ aws ecr describe-images --repository-name vac --region $REGION \
 | `VpcId` | 드롭다운에서 선택 |
 | `PrivateSubnetIds` | 프라이빗 서브넷 2개 이상 (AZ당 1개) |
 | `DBMinCapacity` | 기본값 `0` (유휴 시 자동 일시정지). 상시 응답성이 필요하면 `0.5` |
+| `ClientOrigins` | CORS 를 허용할 클라이언트 오리진(쉼표 구분). 배포 도메인이 바뀌면 여기만 고쳐 스택을 업데이트한다 |
 
 마지막 검토 화면에서 아래 두 가지를 체크해야 한다.
 
@@ -135,6 +136,30 @@ API 함수와 마이그레이션 함수는 **같은 이미지**를 쓰고 `Image
 
 `API_GATEWAY_BASE_PATH` 로 스테이지 경로(`/{스택명}`)를 제거하므로, 클라이언트는
 `{ApiUrl}/auth/login` 처럼 명세서 그대로의 경로를 사용한다.
+
+### CORS
+
+CORS 는 **API Gateway 가 아니라 애플리케이션(`CORSMiddleware`)이 처리한다.**
+HTTP API 에 `CorsConfiguration` 을 넣어도 라우트가 `ANY /{proxy+}` 라서 preflight
+(`OPTIONS`)까지 Lambda 로 전달되고, API Gateway 는 통합이 내려준 CORS 헤더를
+자기 설정으로 덮어쓰기까지 한다. 미들웨어가 없으면 FastAPI 가 `405` 를 돌려주고
+브라우저는 아래 메시지로 요청을 차단한다.
+
+```
+Response to preflight request doesn't pass access control check:
+It does not have HTTP ok status.
+```
+
+허용 오리진은 `ClientOrigins` 파라미터 → Lambda 환경 변수 `CORS_ALLOW_ORIGINS`
+로 전달된다. 스킴과 포트까지 정확히 일치해야 하고 끝에 슬래시를 붙이지 않는다.
+확인은 preflight 를 직접 쏴 보면 된다(`200` + `access-control-allow-origin`).
+
+```bash
+curl -i -X OPTIONS "$API_URL/auth/login" \
+  -H "Origin: https://vac-client.vercel.app" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type"
+```
 
 ### 네트워크
 

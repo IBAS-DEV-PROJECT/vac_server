@@ -18,6 +18,11 @@ class Settings(BaseSettings):
 
     api_v1_prefix: str = "/api/v1"
 
+    # 쉼표로 구분한 CORS 허용 오리진 목록. 브라우저 클라이언트 도메인을 넣는다.
+    cors_allow_origins: str = "http://localhost:5173,http://localhost:3000"
+    # 배포 미리보기처럼 도메인이 매번 바뀌는 경우에만 사용하는 정규식(선택).
+    cors_allow_origin_regex: str | None = None
+
     # 앱 기동 시 테이블을 자동 생성할지 여부. 운영에서는 Alembic 마이그레이션을
     # 사용하므로 false 로 둔다.
     auto_create_tables: bool = True
@@ -36,6 +41,14 @@ class Settings(BaseSettings):
     aws_region: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.cors_allow_origins.split(",")
+            if origin.strip()
+        ]
 
     @property
     def is_lambda(self) -> bool:

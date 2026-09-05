@@ -34,6 +34,12 @@ Parameters:
   LogRetentionDays:
     Type: Number
     Default: 30
+  ClientOrigins:
+    Type: String
+    Default: "https://vac-client.vercel.app,http://localhost:5173,http://localhost:3000"
+    Description: >-
+      CORS 를 허용할 브라우저 클라이언트 오리진 목록(쉼표 구분). 스킴과 포트까지
+      정확히 일치해야 하며 끝에 슬래시를 붙이지 않는다.
 
 Globals:
   Function:
@@ -169,18 +175,10 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Ref AWS::StackName
-      # 필요 시 CORS 허용 오리진을 실제 클라이언트 도메인으로 좁힌다.
-      CorsConfiguration:
-        AllowOrigins:
-          - "*"
-        AllowHeaders:
-          - Authorization
-          - Content-Type
-        AllowMethods:
-          - GET
-          - POST
-          - DELETE
-          - OPTIONS
+      # CorsConfiguration 은 쓰지 않는다. 라우트가 `ANY /{proxy+}` 라 preflight
+      # (OPTIONS)도 Lambda 로 전달되므로 API Gateway 가 대신 응답해주지 않고,
+      # 설정해두면 통합(FastAPI)이 내려준 CORS 헤더까지 덮어써 버린다.
+      # CORS 는 앱의 CORSMiddleware(ClientOrigins 파라미터)가 담당한다.
 
   ApiFunction:
     Type: AWS::Serverless::Function
@@ -205,6 +203,7 @@ Resources:
           DB_HOST: !GetAtt DBCluster.Endpoint.Address
           DB_NAME: !Ref DBName
           JWT_SECRET_ARN: !Ref JwtSecret
+          CORS_ALLOW_ORIGINS: !Ref ClientOrigins
           # API Gateway 스테이지 경로를 URL에서 제거한다.
           API_GATEWAY_BASE_PATH: !Sub "/${AWS::StackName}"
       Policies:
