@@ -396,7 +396,8 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 				"value": "안정",
 				"concernId": "uuid",
 				"concern": "헬스 다시 시작할까",
-                "recordDate": "2026-07-18"
+                "recordDate": "2026-07-18",
+				"concernStatus": "PENDING|RESOLVED"
 		  }
 		],
 		"recordCount": 8
@@ -426,6 +427,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 				"createdAt": "2026-07-12"
 			}
 		],
+		"concernStatus": "PENDING|RESOLVED",
 		"recordCount": 2
 	}
 }
