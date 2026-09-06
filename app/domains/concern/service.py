@@ -42,7 +42,7 @@ class ConcernService:
         return ConcernCreateResponse(concern_id=concern.id, record_id=record.id)
 
     async def list_pending_concerns(self, user_id: str) -> PendingConcernListResponse:
-        rows = await self.concerns.list_pending_concerns(user_id)
+        rows = await self.concerns.list_pending_concerns(user_id, newest_first=True)
         return PendingConcernListResponse(
             ongoing_concerns=[
                 PendingConcernResponse(
@@ -65,7 +65,7 @@ class ConcernService:
             return None
 
         records = await self.concerns.list_records_by_concern(
-            concern_id, newest_first=True
+            concern_id, newest_first=False
         )
         return PastRecordListResponse(
             concern=concern.concern,

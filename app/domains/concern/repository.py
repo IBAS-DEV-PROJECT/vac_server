@@ -60,9 +60,13 @@ class ConcernRepository:
         return result.scalar_one()
 
     async def list_pending_concerns(
-        self, user_id: str, limit: int | None = None
+        self,
+        user_id: str,
+        limit: int | None = None,
+        *,
+        newest_first: bool = False,
     ) -> list[tuple[Concern, datetime, int]]:
-        """진행 중인 고민을 마지막 기록일 오래된 순으로 반환한다.
+        """진행 중인 고민을 마지막 기록일 순으로 반환한다.
 
         각 항목은 (고민, 마지막 기록일, 기록 수) 형태다.
         """
@@ -77,7 +81,7 @@ class ConcernRepository:
                 Concern.status == ConcernStatus.PENDING,
             )
             .group_by(Concern.id)
-            .order_by(last_record_at.asc())
+            .order_by(last_record_at.desc() if newest_first else last_record_at.asc())
         )
         if limit is not None:
             stmt = stmt.limit(limit)

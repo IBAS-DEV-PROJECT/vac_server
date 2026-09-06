@@ -47,7 +47,24 @@ async def test_list_pending_concerns_excludes_resolved_concerns(
     assert concerns[0]["lastRecordDate"]
 
 
-async def test_list_past_records_returns_records_newest_first(
+async def test_list_pending_concerns_returns_concerns_newest_first(
+    client: AsyncClient, auth_headers: dict[str, str]
+):
+    for index in range(3):
+        await create_concern(client, auth_headers, concern=f"고민 {index}")
+
+    response = await client.get("/api/v1/concerns/pending", headers=auth_headers)
+
+    concerns = response.json()["data"]["ongoingConcerns"]
+    # 마지막 기록일 최신순으로 정렬한다.
+    assert [concern["concern"] for concern in concerns] == [
+        "고민 2",
+        "고민 1",
+        "고민 0",
+    ]
+
+
+async def test_list_past_records_returns_records_oldest_first(
     client: AsyncClient, auth_headers: dict[str, str]
 ):
     concern_id = await create_concern(client, auth_headers)
@@ -69,10 +86,10 @@ async def test_list_past_records_returns_records_newest_first(
     data = response.json()["data"]
     assert data["concern"] == "A사 vs B사"
     assert [record["decision"] for record in data["records"]] == [
-        "B사로 기움",
         "아직 못 정함",
+        "B사로 기움",
     ]
-    assert [record["value"] for record in data["records"]] == ["안정", "성장"]
+    assert [record["value"] for record in data["records"]] == ["성장", "안정"]
 
 
 async def test_create_record_with_resolved_status_removes_concern_from_pending(
