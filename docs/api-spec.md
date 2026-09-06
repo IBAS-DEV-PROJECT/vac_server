@@ -329,7 +329,7 @@ values: 성장 / 안정 / 자율 / 연결 / 인정 / 재미 / 효율 / 의미 / 
 
 #### 인사이트 메인 조회
 
-- `GET /insights?startDate=2025-07-01&endDate=2026-08-01&topics=일-진로&values=성장`
+- `GET /insights?startDate=2025-07-01&endDate=2026-08-01&topics=일&values=성장&status=PENDING`
 - `valueByTopic`: **기록 수가 많은 순**으로 정렬한다.
 - `trend`: 조회 기간을 **항상 4개 구간**으로 균등 분할하므로 배열 길이는 4로 고정된다. 구간별 `startDate`/`endDate`는 서버가 계산한다.
 - `trend`의 `valueDistribution`은 **조회 기간 전체에 등장한 모든 가치**를 매 구간에 포함하며, 해당 구간에 기록이 없는 가치는 `percentage`가 `0`이다.
