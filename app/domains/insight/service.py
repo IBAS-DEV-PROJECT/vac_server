@@ -4,6 +4,7 @@ from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.constants import ConcernStatus
 from app.common.utils import day_range, resolve_period, split_buckets, to_percentage
 from app.domains.insight.repository import InsightRepository, RecordRow
 from app.domains.insight.schemas import (
@@ -33,10 +34,13 @@ class InsightService:
         end_date: date | None,
         topics: Sequence[str] | None,
         values: Sequence[str] | None,
+        status: ConcernStatus | None = None,
     ) -> InsightResponse:
         period_start, period_end = resolve_period(start_date, end_date)
         start, end = day_range(period_start, period_end)
-        rows = await self.insights.list_records(user_id, start, end, topics, values)
+        rows = await self.insights.list_records(
+            user_id, start, end, topics, values, status
+        )
 
         buckets = split_buckets(period_start, period_end)
         # 조회 기간 전체에 등장한 가치는 모든 구간에 포함하고, 해당 구간에

@@ -33,6 +33,7 @@ class InsightRepository:
         end: datetime,
         topics: Sequence[str] | None = None,
         values: Sequence[str] | None = None,
+        status: str | None = None,
     ) -> list[RecordRow]:
         """조회 조건에 해당하는 기록을 최신순으로 반환한다."""
         stmt = (
@@ -49,6 +50,8 @@ class InsightRepository:
             stmt = stmt.where(Concern.topic.in_(list(topics)))
         if values:
             stmt = stmt.where(Record.value.in_(list(values)))
+        if status:
+            stmt = stmt.where(Concern.status == status)
 
         result = await self.session.execute(stmt)
         return [
