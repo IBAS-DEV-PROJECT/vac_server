@@ -108,6 +108,42 @@ async def test_get_insights_with_value_filter_returns_matching_records_only(
     assert response.json()["data"]["totalCount"] == 1
 
 
+async def test_get_insights_with_status_filter_returns_matching_records_only(
+    client: AsyncClient, auth_headers: dict[str, str]
+):
+    await create_concern(client, auth_headers, concern="이직", topic="일", value="성장")
+    await create_concern(
+        client,
+        auth_headers,
+        concern="운동",
+        topic="건강",
+        value="안정",
+        concernStatus="RESOLVED",
+    )
+
+    response = await client.get(
+        "/api/v1/insights",
+        headers=auth_headers,
+        params={**today_params(), "status": "RESOLVED"},
+    )
+
+    data = response.json()["data"]
+    assert data["totalCount"] == 1
+    assert [item["topic"] for item in data["valueByTopic"]] == ["건강"]
+
+
+async def test_get_insights_with_invalid_status_returns_422(
+    client: AsyncClient, auth_headers: dict[str, str]
+):
+    response = await client.get(
+        "/api/v1/insights",
+        headers=auth_headers,
+        params={**today_params(), "status": "DONE"},
+    )
+
+    assert response.status_code == 422
+
+
 async def test_get_insights_with_single_record_skips_change_analysis(
     client: AsyncClient, auth_headers: dict[str, str]
 ):

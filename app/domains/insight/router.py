@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
+from app.common.constants import ConcernStatus
 from app.common.dependencies import CurrentUser, SessionDep
 from app.common.response import SuccessResponse, success
 from app.common.utils import parse_multi_query
@@ -23,6 +24,7 @@ async def get_insights(
     end_date: EndDateQuery = None,
     topics: Annotated[list[str] | None, Query()] = None,
     values: Annotated[list[str] | None, Query()] = None,
+    status: Annotated[ConcernStatus | None, Query()] = None,
 ) -> dict:
     data = await InsightService(session).get_insights(
         user_id=current_user.id,
@@ -30,6 +32,7 @@ async def get_insights(
         end_date=end_date,
         topics=parse_multi_query(topics),
         values=parse_multi_query(values),
+        status=status,
     )
     return success(data)
 
